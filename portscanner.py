@@ -115,8 +115,7 @@ class Ui_MainWindow(object):
                 )
                 self.scan_result_view.append(f"State: {host_state}")
 
-                for proto in scanner[host].all_protocols():
-                    protocol = proto
+                for protocol in scanner[host].all_protocols():
                     print(f"Protocol = {protocol}")
                     ports = scanner[host][protocol].keys()
                     sorted(ports)
