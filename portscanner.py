@@ -1,4 +1,5 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
+import nmap
 
 
 class Ui_MainWindow(object):
@@ -56,8 +57,16 @@ class Ui_MainWindow(object):
 
         self.ports_table = QtWidgets.QTableWidget(self.centralwidget)
         self.ports_table.setObjectName("ports_table")
-        self.ports_table.setColumnCount(0)
+        self.ports_table.setColumnCount(3)
+        self.ports_table.setHorizontalHeaderLabels(["Host", "Port", "State"])
+        hori_header = self.ports_table.horizontalHeader()
+        hori_header.setSectionResizeMode(
+            0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents
+        )
+        hori_header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        hori_header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.ports_table.setRowCount(0)
+        self.ports_table.verticalHeader().setVisible(False)
         self.gridLayout.addWidget(self.ports_table, 2, 2, 1, 2)
 
         self.gridLayout.setColumnStretch(0, 3)
@@ -68,6 +77,8 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+        self.scan_button.clicked.connect(self.scanPorts)
+
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
@@ -75,6 +86,68 @@ class Ui_MainWindow(object):
         self.ports_label.setText(_translate("MainWindow", "Ports"))
         self.scan_button.setText(_translate("MainWindow", "Scan"))
         self.results_label.setText(_translate("MainWindow", "Results"))
+
+    def scanPorts(self):
+        self.results_label.setText("Results: (Scanning, Please wait..)")
+        self.scan_result_view.setText("")
+        ip_address = self.ip_input.text()
+        ports = self.ports_input.text()
+        self.ports_table.setRowCount(0)
+
+        print(f"Scan starting, IP = {ip_address}, ports = {ports}")
+
+        if ip_address and ports:
+            scanner = nmap.PortScanner()
+            try:
+                scanner.scan(ip_address, ports)
+            except Exception as e:
+                self.scan_result_view.setText(f"Please check your inputs, {e}")
+
+            for host in scanner.all_hosts():
+                host_address = host
+                host_name = scanner[host].hostname()
+                host_state = scanner[host].state()
+
+                print(host_address, host_name, host_state)
+
+                self.scan_result_view.append(
+                    f"Host: {host_address} ({host_name if host_name else 'Unknown'})"
+                )
+                self.scan_result_view.append(f"State: {host_state}")
+
+                for proto in scanner[host].all_protocols():
+                    protocol = proto
+                    print(f"Protocol = {protocol}")
+                    ports = scanner[host][protocol].keys()
+                    sorted(ports)
+
+                    for p in ports:
+                        port_number = p
+                        port_state = scanner[host][protocol][p]["state"]
+
+                        print(port_number, port_state)
+
+                        current_row_pos = self.ports_table.rowCount()
+                        self.ports_table.insertRow(current_row_pos)
+                        self.ports_table.setItem(
+                            current_row_pos, 0, QtWidgets.QTableWidgetItem(host_address)
+                        )
+                        self.ports_table.setItem(
+                            current_row_pos,
+                            1,
+                            QtWidgets.QTableWidgetItem(f"{port_number}/{protocol}"),
+                        )
+                        self.ports_table.setItem(
+                            current_row_pos,
+                            2,
+                            QtWidgets.QTableWidgetItem(port_state),
+                        )
+
+                if host_address:
+                    self.results_label.setText("Results:")
+        else:
+            self.results_label.setText("Results")
+            self.scan_result_view.setText("Please check your inputs")
 
 
 if __name__ == "__main__":
